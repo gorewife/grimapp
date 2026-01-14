@@ -98,6 +98,10 @@ class LiveSession {
         this._store.state.session.playerId,
       );
     } else {
+      // Initialize storyteller data before sending gamestate
+      if (!this._store.state.session.storyteller.name) {
+        this._store.dispatch('session/initializeStoryteller');
+      }
       this.sendGamestate();
     }
     this._ping();
@@ -233,6 +237,9 @@ class LiveSession {
       case "stPronouns":
         this._updateStorytellerPronouns(params);
         break;
+      case "grimReveal":
+        this._handleGrimoireReveal(params);
+        break;
       case "timer":
         this._handleTimer(params);
         break;
@@ -335,11 +342,6 @@ class LiveSession {
    */
   sendGamestate(playerId = "", isLightweight = false) {
     if (this._isSpectator) return;
-    
-    // Initialize storyteller data if not set
-    if (!this._store.state.session.storyteller.name) {
-      this._store.dispatch('session/initializeStoryteller');
-    }
     
     this._gamestate = this._store.state.players.players.map((player) => ({
       name: player.name,
@@ -587,6 +589,12 @@ class LiveSession {
         delete this._gamestate[index].roleId;
         this._send("player", { index, property, value: "" });
       }
+    } else if (property === "isRevealed" && value === true && this._store.state.grimoire.isRevealMode) {
+      // In reveal mode, when revealing a player, send both isRevealed and role data
+      this._send("player", { index, property: "isRevealed", value: true });
+      if (player.role && player.role.id) {
+        this._send("player", { index, property: "role", value: player.role.id });
+      }
     } else {
       this._send("player", { index, property, value });
     }
@@ -705,6 +713,18 @@ class LiveSession {
     // Update Vuex state first
     this._store.commit('session/setStoryteller', { pronouns });
     this._send("stPronouns", pronouns);
+  }
+
+  /**
+   * Send grimoire reveal to all clients (storyteller only)
+   * @param isRevealing boolean
+   */
+  sendGrimoireReveal(isRevealing) {
+    if (this._isSpectator) return;
+    
+    // Just broadcast the reveal mode state change
+    // Individual role reveals will be sent separately as tokens are clicked
+    this._send("grimReveal", { active: isRevealing });
   }
 
   /**
@@ -843,6 +863,30 @@ class LiveSession {
   _updateStorytellerPronouns(value) {
     if (this._isSpectator) {
       this._store.commit("session/setStoryteller", { pronouns: value });
+    }
+  }
+
+  /**
+   * Handle grimoire reveal from storyteller
+   * @param data { active: boolean }
+   * @private
+   */
+  _handleGrimoireReveal(data) {
+    if (!this._isSpectator) return; // Only spectators/players receive this
+    
+    if (data.active) {
+      // Enter reveal mode - just toggle the mode, don't apply data
+      // Individual reveals will be broadcast as the storyteller clicks tokens
+      if (!this._store.state.grimoire.isRevealMode) {
+        this._store.commit("toggleGrimoire", false);
+        this._store.commit("players/resetReveals");
+        this._store.commit("toggleRevealMode");
+      }
+    } else {
+      // Exit reveal mode
+      if (this._store.state.grimoire.isRevealMode) {
+        this._store.commit("toggleRevealMode");
+      }
     }
   }
 

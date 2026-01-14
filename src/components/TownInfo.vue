@@ -63,7 +63,9 @@
           :icon="teams.traveller > 1 ? 'user-friends' : 'user'"
         />
       </span>
-      <span v-if="grimoire.isNight">
+    </li>
+    <li v-if="grimoire.isNight">
+      <span>
         Night phase
         <font-awesome-icon :icon="['fas', 'cloud-moon']" />
       </span>
@@ -110,15 +112,15 @@ export default {
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
-  width: 25%;
-  height: 25%;
-  min-width: 300px;
-  min-height: 300px;
+  width: 20%;
+  height: 20%;
+  min-width: 240px;
+  min-height: 240px;
   padding: 0;
   align-items: center;
   justify-content: center;
   background: url("../assets/demon-head.webp") center center no-repeat;
-  background-size: contain;
+  background-size: 80%;
   z-index: 1;
   pointer-events: none;
 
@@ -194,8 +196,8 @@ export default {
   li.edition {
     width: 100%;
     height: 80%;
-    max-width: 400px;
-    max-height: 400px;
+    max-width: 200px;
+    max-height: 200px;
     background-position: center center;
     background-repeat: no-repeat;
     background-size: contain;

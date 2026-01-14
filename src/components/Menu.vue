@@ -1174,10 +1174,20 @@ export default {
         this.$store.commit("toggleGrimoire", false); // Make grimoire private (no CSS flip)
         this.$store.commit("players/resetReveals");
         this.$store.commit("toggleRevealMode"); // Set isRevealMode = true
+        
+        // Send grimoire state to all connected players
+        if (this.$store.state.socket && !this.$store.state.session.isSpectator) {
+          this.$store.state.socket.sendGrimoireReveal(true);
+        }
       } else {
         // Exiting reveal mode - just toggle mode off, DON'T reset reveals so they stay visible
         this.$store.commit("toggleRevealMode"); // Set isRevealMode = false
         // Don't call resetReveals here - revealed tokens should stay revealed!
+        
+        // Notify all connected players to exit reveal mode
+        if (this.$store.state.socket && !this.$store.state.session.isSpectator) {
+          this.$store.state.socket.sendGrimoireReveal(false);
+        }
       }
     },
     handleProfileClick() {

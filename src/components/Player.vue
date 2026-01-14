@@ -1012,16 +1012,16 @@ li.move:not(.from) .player .overlay svg.move {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 0.25em;
   }
 
   .discord-indicator {
-    width: 1.2em;
-    height: 1.2em;
+    width: 0.9em;
+    height: 0.9em;
     object-fit: contain;
-    vertical-align: middle;
     filter: brightness(1.2);
     flex-shrink: 0;
+    margin-top: -0.15em;
   }
 
   span {
@@ -1029,7 +1029,8 @@ li.move:not(.from) .player .overlay svg.move {
     text-overflow: ellipsis;
     white-space: nowrap;
     text-align: center;
-    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
   }
 
   &:hover,

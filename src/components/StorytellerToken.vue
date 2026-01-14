@@ -24,12 +24,6 @@
       >
         <div class="name-row">
           <span>{{ storytellerName }}</span>
-          <font-awesome-icon
-            v-if="storytellerDiscordId"
-            :icon="['fab', 'discord']"
-            class="discord-indicator"
-            title="Discord linked"
-          />
         </div>
         <span class="pronouns" v-if="storytellerPronouns">{{ storytellerPronouns }}</span>
       </div>

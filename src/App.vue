@@ -449,11 +449,28 @@ video#background {
     display: block;
     width: 100%;
     height: 100%;
+    background-image: url("assets/clouds.webp");
+    background-size: cover;
+    background-position: center center;
     opacity: 0;
+    transition: opacity 2s ease-in-out;
+    animation: cloudDrift 120s linear infinite;
   }
 }
 
 #app.night > .backdrop {
-  opacity: 0.5;
+  opacity: 1;
+  &:after {
+    opacity: 1;
+  }
+}
+
+@keyframes cloudDrift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
 }
 </style>
