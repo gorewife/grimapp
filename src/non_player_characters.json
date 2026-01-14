@@ -1,0 +1,228 @@
+[
+  {
+    "id": "angel",
+    "name": "Angel",
+    "team": "fabled",
+    "firstNightReminder": "Inform the group which player(s) are protected by the Angel. Mark them as 'Protected'.",
+    "otherNightReminder": "",
+    "reminders": [
+      "Protected",
+      "Protected",
+      "Something Bad"
+    ],
+    "setup": false,
+    "ability": "Something bad might happen to whoever is most responsible for the death of a new player."
+  },
+  {
+    "id": "buddhist",
+    "name": "Buddhist",
+    "team": "fabled",
+    "firstNightReminder": "Inform the group which player(s) are affected by the Buddhist.",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": false,
+    "ability": "For the first 2 minutes of each day, veteran players may not talk."
+  },
+  {
+    "id": "deusexfiasco",
+    "name": "Deus ex Fiasco",
+    "team": "fabled",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [
+      "Whoopsie"
+    ],
+    "setup": true,
+    "ability": "At least once per game, the Storyteller will make a mistake, correct it, and publicly admit to it."
+  },
+  {
+    "id": "djinn",
+    "name": "Djinn",
+    "team": "fabled",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": false,
+    "ability": "Use the Djinn's special rule. All players know what it is."
+  },
+  {
+    "id": "doomsayer",
+    "name": "Doomsayer",
+    "team": "fabled",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": false,
+    "ability": "If 4 or more players live, each living player may publicly choose (once per game) that a player of their own alignment dies."
+  },
+  {
+    "id": "duchess",
+    "name": "Duchess",
+    "team": "fabled",
+    "firstNightReminder": "",
+    "otherNightReminder": "Wake each player marked “Visitor” or “False Info” one at a time. Show them the Duchess token, then fingers (1, 2, 3) equaling the number of evil players marked “Visitor” or, if you are waking the player marked “False Info,” show them any number of fingers except the number of evil players marked “Visitor.”",
+    "reminders": [
+      "Visitor",
+      "Visitor",
+      "False Info"
+    ],
+    "setup": false,
+    "ability": "Each day, 3 players may choose to visit you. At night*, each visitor learns how many visitors are evil, but 1 gets false info."
+  },
+  {
+    "id": "ferryman",
+    "name": "Ferryman",
+    "team": "fabled",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": false,
+    "ability": "On the final day, all dead players regain their vote token."
+  },
+  {
+    "id": "fibbin",
+    "name": "Fibbin",
+    "team": "fabled",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [
+      "No Ability"
+    ],
+    "setup": false,
+    "ability": "Once per game, 1 good player might get incorrect information."
+  },
+  {
+    "id": "fiddler",
+    "name": "Fiddler",
+    "team": "fabled",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": false,
+    "ability": "Once per game, the Demon secretly chooses an opposing player: all players choose which of these 2 players win."
+  },
+  {
+    "id": "hellslibrarian",
+    "name": "Hell’s Librarian",
+    "team": "fabled",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [
+      "Something Bad"
+    ],
+    "setup": false,
+    "ability": "Something bad might happen to whoever talks when the Storyteller has asked for silence."
+  },
+  {
+    "id": "revolutionary",
+    "name": "Revolutionary",
+    "team": "fabled",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [
+      "Register Falsely?"
+    ],
+    "setup": false,
+    "ability": "2 neighboring players are known to be the same alignment. Once per game, 1 of them registers falsely."
+  },
+  {
+    "id": "sentinel",
+    "name": "Sentinel",
+    "team": "fabled",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": true,
+    "ability": "There might be 1 extra or 1 fewer Outsider in play."
+  },
+  {
+    "id": "spiritofivory",
+    "name": "Spirit of Ivory",
+    "team": "fabled",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [
+      "No More Evil"
+    ],
+    "setup": false,
+    "ability": "There can't be more than 1 extra evil player."
+  },
+  {
+    "id": "toymaker",
+    "name": "Toymaker",
+    "team": "fabled",
+    "firstNightReminder": "Do the Minion & Demon Info steps, even though there are less than 7 players.",
+    "otherNightReminder": "If it is a night when a Demon attack could end the game, and the Demon is marked “Final night: No Attack,” then the Demon does not act tonight. (Do not wake them.)",
+    "reminders": [
+      "Final Night: No Attack"
+    ],
+    "setup": false,
+    "ability": "The Demon may choose not to attack & must do this at least once per game. Evil players get normal starting info."
+  },
+  {
+    "id": "bigwig",
+    "name": "Big Wig",
+    "team": "loric",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": false,
+    "ability": "Each nominee chooses a player: until voting, only they may speak & they are mad the nominee is good or they might die."
+  },
+  {
+    "id": "bootlegger",
+    "name": "Bootlegger",
+    "team": "loric",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": false,
+    "ability": "This script has homebrew characters or rules."
+  },
+  {
+    "id": "gardener",
+    "name": "Gardener",
+    "team": "loric",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [],
+    "setup": false,
+    "ability": "The Storyteller assigns 1 or more players' characters."
+  },
+  {
+    "id": "stormcatcher",
+    "name": "Storm Catcher",
+    "team": "loric",
+    "firstNightReminder": "Announce the good 'Stormcaught' character. If that character is in play, mark the player with that character as 'Stormcaught'. Wake each evil player and show them the marked player.",
+    "otherNightReminder": "",
+    "reminders": [
+      "Stormcaught"
+    ],
+    "setup": false,
+    "ability": "Name a good character. If in play, they can only die by execution, but evil players learn which player it is."
+  },
+  {
+    "id": "tor",
+    "name": "Tor",
+    "team": "loric",
+    "firstNightReminder": "",
+    "otherNightReminder": "If a player died tonight, wake that player and show them the 'You are' card, their character token, and a thumbs up or thumbs down.",
+    "reminders": [],
+    "setup": true,
+    "ability": "Players don't know their character or alignment. They learn them when they die."
+  },
+  {
+    "id": "zenomancer",
+    "name": "Zenomancer",
+    "team": "loric",
+    "firstNightReminder": "",
+    "otherNightReminder": "",
+    "reminders": [
+      "Goal",
+      "Goal",
+      "Goal"
+    ],
+    "setup": false,
+    "ability": "One or more players each have a goal. When achieved, that player learns a piece of true info."
+  }
+]

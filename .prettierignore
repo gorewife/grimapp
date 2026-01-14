@@ -1,0 +1,14 @@
+dist/
+node_modules/
+
+## file extensions
+*.*
+!*.css
+!*.js
+!*.json
+!*.jsx
+!*.md
+!*.mdx
+!*.ts
+!*.tsx
+!*.vue
