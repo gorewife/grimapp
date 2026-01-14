@@ -5,6 +5,7 @@
       v-if="role.id"
       :src="getImage(role)"
       :alt="role.name"
+      :loading="lazy ? 'lazy' : 'eager'"
     />
     <span
       class="leaf-left"
@@ -76,6 +77,10 @@ export default {
       default: 0,
       validator: (val) => val >= 0 && val <= 2,
     },
+    lazy: {
+      type: Boolean,
+      default: false,
+    },
   },
   computed: {
     reminderLeaves: function () {
@@ -134,16 +139,18 @@ export default {
   background-size: 100%;
   text-align: center;
   border: 3px solid #2a1a3d;
-  box-shadow:
-    0 0 20px rgba(123, 44, 191, 0.3),
-    0 4px 15px rgba(0, 0, 0, 0.6),
-    inset 0 0 30px rgba(139, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 350ms ease;
+  transition: none;
   position: relative;
+  contain: layout style paint;
+
+  @media (prefers-reduced-motion: no-preference) {
+    transition: transform 200ms ease, box-shadow 200ms ease;
+  }
 
   &::after {
     content: "";
@@ -160,23 +167,11 @@ export default {
   &:hover {
     transform: scale(1.05);
     border-color: #4a2a5d;
-    box-shadow:
-      0 0 30px rgba(123, 44, 191, 0.5),
-      0 6px 20px rgba(0, 0, 0, 0.8),
-      inset 0 0 40px rgba(139, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
   }
 
   &:hover .name .label {
-    stroke: black;
     fill: white;
-    @-moz-document url-prefix() {
-      &.mozilla {
-        stroke: none;
-        filter: drop-shadow(0 1.5px 0 black) drop-shadow(0 -1.5px 0 black)
-          drop-shadow(1.5px 0 0 black) drop-shadow(-1.5px 0 0 black)
-          drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
-      }
-    }
   }
 
   .icon,
@@ -253,28 +248,11 @@ export default {
     .label {
       fill: #f5e6d3;
       stroke: #000000;
-      stroke-width: 3px;
+      stroke-width: 2px;
       paint-order: stroke;
       font-family: "Sorts Mill Goudy", serif;
       font-weight: bold;
-      text-shadow:
-        0 2px 4px rgba(0, 0, 0, 0.9);
-      letter-spacing: 1.5px;
-      filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.8));
-
-      @-moz-document url-prefix() {
-        &.mozilla {
-          // Vue doesn't support scoped media queries, so we have to use a second css class
-          stroke: none;
-          text-shadow:
-            0 2px 0 black,
-            0 -2px 0 black,
-            2px 0 0 black,
-            -2px 0 0 black,
-            0 3px 3px rgba(0, 0, 0, 0.8);
-          filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
-        }
-      }
+      letter-spacing: 1px;
     }
   }
 

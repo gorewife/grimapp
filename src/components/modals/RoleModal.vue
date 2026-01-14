@@ -32,8 +32,9 @@
         :class="[role.team, { match: queryMatches(role.name) }]"
         :key="role.id"
         @click="setRole(role, getAlignmentIndex(role))"
+        v-memo="[role.id, getAlignmentIndex(role)]"
       >
-        <Token :role="role" :alignment-index="getAlignmentIndex(role)" />
+        <Token :role="role" :alignment-index="getAlignmentIndex(role)" :lazy="true" />
       </li>
     </ul>
     <div
@@ -215,6 +216,8 @@ ul.tokens li {
   margin: 1%;
   transition: transform 200ms ease;
   will-change: transform;
+  contain: layout style paint;
+  content-visibility: auto;
 
   @media (orientation: portrait) {
     width: 8vh;
