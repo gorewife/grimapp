@@ -8,6 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "desktop": "tauri dev",
+    "desktop:st": "tauri dev --config src-tauri/tauri.st.conf.json",
+    "desktop:player": "tauri dev --config src-tauri/tauri.play.conf.json",
     "desktop:build": "tauri build",
     "preview": "vite preview",
     "lint": "eslint --ext .js,.vue src",

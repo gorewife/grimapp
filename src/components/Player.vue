@@ -438,10 +438,10 @@ export default {
         newAlignment = 0;
       this.updatePlayer("alignmentIndex", newAlignment);
     },
-    changePronouns() {
+    async changePronouns() {
       if (this.session.isSpectator && this.player.id !== this.session.playerId)
         return;
-      const pronouns = prompt("Player pronouns", this.player.pronouns);
+      const pronouns = await window.$dialog.prompt("Player pronouns", this.player.pronouns);
       //Only update pronouns if not null (prompt was not cancelled)
       if (pronouns !== null) {
         this.updatePlayer("pronouns", pronouns, true);
@@ -470,8 +470,8 @@ export default {
         }
       }
     },
-    changeName() {
-      const name = prompt("Player name", this.player.name) || this.player.name;
+    async changeName() {
+      const name = await window.$dialog.prompt("Player name", this.player.name) || this.player.name;
       if (name !== null && name !== "") {
         this.updatePlayer("name", name, true);
       }

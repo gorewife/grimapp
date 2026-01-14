@@ -227,8 +227,20 @@ class LiveSession {
       case "name":
         this._updatePlayerName(params);
         break;
+      case "stName":
+        this._updateStorytellerName(params);
+        break;
+      case "stPronouns":
+        this._updateStorytellerPronouns(params);
+        break;
       case "timer":
         this._handleTimer(params);
+        break;
+      case "grimRequest":
+        this._handleGrimoireRequest(params);
+        break;
+      case "grimResponse":
+        this._handleGrimoireResponse(params);
         break;
     }
   }
@@ -323,6 +335,12 @@ class LiveSession {
    */
   sendGamestate(playerId = "", isLightweight = false) {
     if (this._isSpectator) return;
+    
+    // Initialize storyteller data if not set
+    if (!this._store.state.session.storyteller.name) {
+      this._store.dispatch('session/initializeStoryteller');
+    }
+    
     this._gamestate = this._store.state.players.players.map((player) => ({
       name: player.name,
       id: player.id,
@@ -335,9 +353,14 @@ class LiveSession {
         ? { roleId: player.role.id }
         : {}),
     }));
+    
+    // Use storyteller data from Vuex state instead of localStorage
+    const storytellerData = this._store.state.session.storyteller;
+    
     if (isLightweight) {
       this._sendDirect(playerId, "gs", {
         gamestate: this._gamestate,
+        storyteller: storytellerData,
         isLightweight,
       });
     } else {
@@ -346,6 +369,7 @@ class LiveSession {
       this.sendEdition(playerId);
       this._sendDirect(playerId, "gs", {
         gamestate: this._gamestate,
+        storyteller: storytellerData,
         isNight: grimoire.isNight,
         allowSelfNaming: session.allowSelfNaming,
         isVoteHistoryAllowed: session.isVoteHistoryAllowed,
@@ -370,6 +394,7 @@ class LiveSession {
     if (!this._isSpectator) return;
     const {
       gamestate,
+      storyteller,
       isLightweight,
       isNight,
       allowSelfNaming,
@@ -383,6 +408,12 @@ class LiveSession {
       markedPlayer,
       npcs,
     } = data;
+    
+    // Update storyteller info if provided
+    if (storyteller) {
+      this._store.commit("session/setStoryteller", storyteller);
+    }
+    
     const players = this._store.state.players.players;
     // adjust number of players
     if (players.length < gamestate.length) {
@@ -655,6 +686,28 @@ class LiveSession {
   }
 
   /**
+   * Send storyteller name update to all clients
+   * @param name
+   */
+  sendStorytellerName(name) {
+    if (this._isSpectator) return;
+    // Update Vuex state first
+    this._store.commit('session/setStoryteller', { name });
+    this._send("stName", name);
+  }
+
+  /**
+   * Send storyteller pronouns update to all clients
+   * @param pronouns
+   */
+  sendStorytellerPronouns(pronouns) {
+    if (this._isSpectator) return;
+    // Update Vuex state first
+    this._store.commit('session/setStoryteller', { pronouns });
+    this._send("stPronouns", pronouns);
+  }
+
+  /**
    * Handle incoming timer message
    * @param timerData
    * @private
@@ -682,6 +735,59 @@ class LiveSession {
         this._store.commit("session/syncTimer", timerData);
         break;
     }
+  }
+
+  /**
+   * Handle incoming grimoire access request (storyteller only).
+   * @param data { id: string, name: string }
+   * @private
+   */
+  _handleGrimoireRequest(data) {
+    if (this._isSpectator) return; // Only storyteller should receive this
+    
+    // Add to Vuex state
+    this._store.commit('session/addGrimoireRequest', data);
+  }
+
+  /**
+   * Handle grimoire response (spectator only).
+   * @param data { approved: boolean, data?: object }
+   * @private
+   */
+  _handleGrimoireResponse(data) {
+    if (!this._isSpectator) return; // Only spectators should receive this
+    
+    // Set response in Vuex state
+    this._store.commit('session/setGrimoireResponse', data);
+  }
+
+  /**
+   * Send grimoire access request to storyteller (spectator only).
+   * @param requesterName string
+   */
+  sendGrimoireRequest(requesterName) {
+    if (!this._isSpectator) return;
+    
+    this._send("grimRequest", {
+      id: this._store.state.session.playerId,
+      name: requesterName,
+    });
+  }
+
+  /**
+   * Send grimoire response to spectator (storyteller only).
+   * @param spectatorId string
+   * @param approved boolean
+   * @param data object (optional)
+   */
+  sendGrimoireResponse(spectatorId, approved, data = {}) {
+    if (this._isSpectator) return;
+    
+    this._send("grimResponse", {
+      approved,
+      data,
+      targetId: spectatorId,
+    });
   }
 
   /**
@@ -716,6 +822,28 @@ class LiveSession {
       value,
       isFromSockets: true,
     });
+  }
+
+  /**
+   * Update storyteller name based on incoming data.
+   * @param value
+   * @private
+   */
+  _updateStorytellerName(value) {
+    if (this._isSpectator) {
+      this._store.commit("session/setStoryteller", { name: value });
+    }
+  }
+
+  /**
+   * Update storyteller pronouns based on incoming data.
+   * @param value
+   * @private
+   */
+  _updateStorytellerPronouns(value) {
+    if (this._isSpectator) {
+      this._store.commit("session/setStoryteller", { pronouns: value });
+    }
   }
 
   /**
@@ -1115,6 +1243,9 @@ export default (store) => {
   const session = new LiveSession(store);
 
   store.state.grimoire.sendTimer = session.sendTimer.bind(session);
+  
+  // Expose socket methods to store state for component access
+  store.state.socket = session;
 
   store.subscribe(({ type, payload }, state) => {
     switch (type) {

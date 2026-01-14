@@ -58,11 +58,30 @@ const state = () => ({
     endTime: null,
     startedBy: null,
   },
+  grimoireRequests: [],
+  grimoireResponse: null,
+  storyteller: {
+    name: "",
+    pronouns: "",
+    discordId: "",
+    discordAvatar: "",
+  },
 });
 
 const getters = {};
 
-const actions = {};
+const actions = {
+  // Initialize storyteller data from stats/localStorage when hosting
+  initializeStoryteller({ commit, rootState }) {
+    const storytellerData = {
+      name: localStorage.getItem('storytellerName') || rootState.stats.discordUsername || 'Storyteller',
+      pronouns: localStorage.getItem('storytellerPronouns') || '',
+      discordId: rootState.stats.discordUserId || '',
+      discordAvatar: localStorage.getItem('discordAvatar') || '',
+    };
+    commit('setStoryteller', storytellerData);
+  },
+};
 
 // mutations helper functions
 const set = (key) => (state, val) => {
@@ -78,6 +97,24 @@ const mutations = {
   setPing: set("ping"),
   setVotingSpeed: set("votingSpeed"),
   setVoteInProgress: set("isVoteInProgress"),
+  addGrimoireRequest(state, request) {
+    state.grimoireRequests.push(request);
+  },
+  removeGrimoireRequest(state, requestId) {
+    const index = state.grimoireRequests.findIndex(r => r.id === requestId);
+    if (index !== -1) {
+      state.grimoireRequests.splice(index, 1);
+    }
+  },
+  setGrimoireResponse(state, response) {
+    state.grimoireResponse = response;
+  },
+  clearGrimoireResponse(state) {
+    state.grimoireResponse = null;
+  },
+  setStoryteller(state, storytellerData) {
+    state.storyteller = { ...state.storyteller, ...storytellerData };
+  },
   setMarkedPlayer: set("markedPlayer"),
   setNomination: set("nomination"),
   setAllowSelfNaming: set("allowSelfNaming"),

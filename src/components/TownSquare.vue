@@ -9,6 +9,8 @@
       'reveal-mode': grimoire.isRevealMode,
     }"
   >
+    <StorytellerToken />
+
     <ul class="circle" :class="['size-' + players.length]">
       <Player
         v-for="(player, index) in players"
@@ -97,6 +99,15 @@
 
     <ReminderModal :player-index="selectedPlayer"></ReminderModal>
     <RoleModal :player-index="selectedPlayer"></RoleModal>
+    
+    <!-- Grimoire Request Notifications (for storyteller only) -->
+    <GrimoireRequestNotification
+      v-for="request in grimoireRequests"
+      :key="request.id"
+      :requester-name="request.name"
+      :requester-id="request.id"
+      @close="removeGrimoireRequest(request.id)"
+    />
   </div>
 </template>
 
@@ -105,8 +116,10 @@ import { ref, computed, defineComponent } from "vue";
 import { useStore } from "vuex";
 import Player from "./Player.vue";
 import Token from "./Token.vue";
+import StorytellerToken from "./StorytellerToken.vue";
 import ReminderModal from "./modals/ReminderModal.vue";
 import RoleModal from "./modals/RoleModal.vue";
+import GrimoireRequestNotification from "./GrimoireRequestNotification.vue";
 import type { Player as PlayerType, Role } from "@/types/player";
 
 export default defineComponent({
@@ -114,8 +127,10 @@ export default defineComponent({
   components: {
     Player,
     Token,
+    StorytellerToken,
     RoleModal,
     ReminderModal,
+    GrimoireRequestNotification,
   },
   setup() {
     const store = useStore();
@@ -316,6 +331,13 @@ export default defineComponent({
       nominate.value = -1;
     };
 
+    // Grimoire requests from Vuex
+    const grimoireRequests = computed(() => store.state.session.grimoireRequests);
+
+    const removeGrimoireRequest = (id: string) => {
+      store.commit('session/removeGrimoireRequest', id);
+    };
+
     return {
       // Refs
       selectedPlayer,
@@ -325,6 +347,7 @@ export default defineComponent({
       nominate,
       isBluffsOpen,
       isNpcsOpen,
+      grimoireRequests,
 
       // Computed
       grimoire,
@@ -348,6 +371,7 @@ export default defineComponent({
       movePlayer,
       nominatePlayer,
       cancel,
+      removeGrimoireRequest,
     };
   },
 });
@@ -495,9 +519,13 @@ export default defineComponent({
   position: absolute;
   &.bluffs {
     bottom: 10px;
+    transform-origin: bottom left;
+    transform: scale(0.6); // Make bluffs window smaller
   }
   &.npcs {
-    top: 10px;
+    bottom: 120px; // Position just above bluffs window
+    transform-origin: bottom left;
+    transform: scale(0.5); // Make NPCs window half size
   }
   left: 10px;
   background: linear-gradient(

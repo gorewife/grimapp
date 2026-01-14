@@ -147,9 +147,10 @@ pub struct ScriptStats {
 }
 
 // ============================================================================
-// WebSocket Messages
+// WebSocket Messages (Legacy - kept for reference)
 // ============================================================================
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum WsMessage {
@@ -179,6 +180,7 @@ pub enum WsMessage {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WsPlayer {
     pub id: String,

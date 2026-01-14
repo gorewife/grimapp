@@ -71,8 +71,10 @@ async fn main() -> anyhow::Result<()> {
         // Health check
         .route("/health", get(health::health_check))
         
-        // WebSocket endpoint
+        // WebSocket endpoint - match the frontend's URL pattern
         .route("/", get(ws_handler::websocket_handler))
+        .route("/:channel", get(ws_handler::websocket_handler_with_channel))
+        .route("/:channel/:client", get(ws_handler::websocket_handler_with_client))
         
         // Auth endpoints (no API key required)
         .route("/auth/discord", get(auth::discord_oauth))

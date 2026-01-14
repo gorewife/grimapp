@@ -1,33 +1,48 @@
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
+        Path,
         State,
     },
     response::Response,
 };
 use futures::{sink::SinkExt, stream::StreamExt};
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{mpsc, RwLock};
+use std::collections::HashMap;
+use tokio::sync::mpsc;
 use uuid::Uuid;
-use crate::{models::WsMessage, state::AppState};
+use crate::state::{AppState, SessionClients};
 
-/// Client sender type for WebSocket messages
-type ClientSender = mpsc::UnboundedSender<Message>;
-
-/// Session-based client registry
-/// Maps session_id -> client_id -> sender
-type SessionClients = Arc<RwLock<HashMap<String, HashMap<String, ClientSender>>>>;
-
-/// WebSocket handler - upgrades HTTP connection to WebSocket
+/// WebSocket handler with optional path parameters
 pub async fn websocket_handler(
     ws: WebSocketUpgrade,
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> Response {
-    ws.on_upgrade(handle_socket)
+    let clients = state.websocket_clients.clone();
+    ws.on_upgrade(move |socket| handle_socket(socket, None, clients))
+}
+
+/// WebSocket handler with channel path parameter
+pub async fn websocket_handler_with_channel(
+    ws: WebSocketUpgrade,
+    Path(channel): Path<String>,
+    State(state): State<AppState>,
+) -> Response {
+    let clients = state.websocket_clients.clone();
+    ws.on_upgrade(move |socket| handle_socket(socket, Some(channel), clients))
+}
+
+/// WebSocket handler with channel and client path parameters
+pub async fn websocket_handler_with_client(
+    ws: WebSocketUpgrade,
+    Path((channel, _client)): Path<(String, String)>,
+    State(state): State<AppState>,
+) -> Response {
+    let clients = state.websocket_clients.clone();
+    ws.on_upgrade(move |socket| handle_socket(socket, Some(channel), clients))
 }
 
 /// Handle an individual WebSocket connection
-async fn handle_socket(socket: WebSocket) {
+async fn handle_socket(socket: WebSocket, session_id_from_path: Option<String>, clients: SessionClients) {
     let (mut sender, mut receiver) = socket.split();
     let client_id = Uuid::new_v4().to_string();
 
@@ -45,98 +60,45 @@ async fn handle_socket(socket: WebSocket) {
         }
     });
 
-    // Initialize session state
-    let clients: SessionClients = Arc::new(RwLock::new(HashMap::new()));
+    // Use shared session state from AppState
     let clients_for_recv = clients.clone();
     
     // Handle incoming messages
     let mut recv_task = tokio::spawn(async move {
-        let mut session_id: Option<String> = None;
+        // Session ID from path or will be determined from first message
+        let mut session_id: Option<String> = session_id_from_path.clone();
+        
+        // If we have session from path, register immediately
+        if let Some(ref sid) = session_id {
+            let mut clients_lock = clients_for_recv.write().await;
+            clients_lock
+                .entry(sid.clone())
+                .or_insert_with(HashMap::new)
+                .insert(client_id.clone(), tx.clone());
+            
+            tracing::info!(
+                "Client {} joined session {} (from path). Total clients: {}",
+                client_id,
+                sid,
+                clients_lock.get(sid).map(|c| c.len()).unwrap_or(0)
+            );
+        }
 
         while let Some(Ok(msg)) = receiver.next().await {
             match msg {
                 Message::Text(text) => {
-                    tracing::debug!("Received message from {}: {}", client_id, text);
-
-                    // Parse message
-                    match serde_json::from_str::<WsMessage>(&text) {
-                        Ok(ws_msg) => {
-                            match ws_msg {
-                                WsMessage::Connect {
-                                    session_id: sid,
-                                    discord_id: _,
-                                    username: _,
-                                } => {
-                                    // Store client in session
-                                    session_id = Some(sid.clone());
-                                    let mut clients_lock = clients_for_recv.write().await;
-                                    clients_lock
-                                        .entry(sid.clone())
-                                        .or_insert_with(HashMap::new)
-                                        .insert(client_id.clone(), tx.clone());
-                                    
-                                    tracing::info!(
-                                        "Client {} joined session {}. Total clients: {}",
-                                        client_id,
-                                        sid,
-                                        clients_lock.get(&sid).map(|c| c.len()).unwrap_or(0)
-                                    );
-                                }
-                                WsMessage::GameState { players, night, phase } => {
-                                    if let Some(sid) = &session_id {
-                                        tracing::debug!(
-                                            "Game state update for session {}: {} players, night {}, phase {}",
-                                            sid,
-                                            players.len(),
-                                            night,
-                                            phase
-                                        );
-                                        
-                                        // Broadcast to all clients in this session
-                                        broadcast_to_session(
-                                            &clients_for_recv,
-                                            sid,
-                                            &client_id,
-                                            &text,
-                                        ).await;
-                                    }
-                                }
-                                WsMessage::PlayerUpdate { .. } => {
-                                    if let Some(sid) = &session_id {
-                                        broadcast_to_session(
-                                            &clients_for_recv,
-                                            sid,
-                                            &client_id,
-                                            &text,
-                                        ).await;
-                                    }
-                                }
-                                WsMessage::Timer { .. } => {
-                                    if let Some(sid) = &session_id {
-                                        broadcast_to_session(
-                                            &clients_for_recv,
-                                            sid,
-                                            &client_id,
-                                            &text,
-                                        ).await;
-                                    }
-                                }
-                                WsMessage::Chat { .. } => {
-                                    if let Some(sid) = &session_id {
-                                        broadcast_to_session(
-                                            &clients_for_recv,
-                                            sid,
-                                            &client_id,
-                                            &text,
-                                        ).await;
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                        Err(e) => {
-                            tracing::warn!("Failed to parse message from {}: {}", client_id, e);
-                        }
+                    tracing::debug!("Message from {} in session {:?}: {}", client_id, session_id, text);
+                    
+                    // Broadcast message to all clients in the session
+                    if let Some(ref sid) = session_id {
+                        broadcast_to_session(
+                            &clients_for_recv,
+                            sid,
+                            &client_id,
+                            &text,
+                        ).await;
+                    } else {
+                        tracing::warn!("Message from {} but no session established (this shouldn't happen)", client_id);
                     }
                 }
                 Message::Close(_) => {

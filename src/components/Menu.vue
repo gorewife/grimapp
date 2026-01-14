@@ -216,7 +216,7 @@
               </div>
               <div class="profile-details">
                 <small class="profile-username">{{ discordUsername }}</small>
-                <small class="profile-status">✓ Linked</small>
+                <small class="profile-status">Linked</small>
               </div>
             </div>
             <em title="View Profile">
@@ -446,6 +446,14 @@
                   ]"
               /></em>
             </li>
+            <li
+              v-if="isDevelopment"
+              @click="clearSessionData"
+              style="background: rgba(255, 150, 0, 0.2); border: 1px solid rgba(255, 150, 0, 0.5);"
+            >
+              <small style="color: #ffaa00;">🔧 Clear Session Data (Dev)</small>
+              <em><font-awesome-icon icon="eraser" style="color: #ffaa00;" /></em>
+            </li>
             <li @click="leaveSession">
               Leave Session
               <em>{{ session.sessionId }}</em>
@@ -555,6 +563,9 @@ export default {
         this.npcs.some((npc) => npc.id === "gardener") &&
         !this.npcs.some((npc) => npc.id === "tor")
       );
+    },
+    isDevelopment() {
+      return process.env.NODE_ENV !== 'production';
     },
     // Now properly reactive from Vuex - no updateKey needed!
     ...mapState("stats", {
@@ -709,6 +720,30 @@ export default {
       if (await window.$dialog.confirm("Are you sure you want to leave the active live game?")) {
         this.$store.commit("session/setSpectator", false);
         this.$store.commit("session/setSessionId", "");
+      }
+    },
+    async clearSessionData() {
+      if (await window.$dialog.confirm(
+        "Clear session data? This will:\n" +
+        "• Generate a new player ID\n" +
+        "• Clear claimed seat\n" +
+        "• Allow you to rejoin as a different player\n\n" +
+        "Use this to test multiplayer locally."
+      )) {
+        // Clear session-related localStorage items
+        localStorage.removeItem('playerId');
+        localStorage.removeItem('playerSecret');
+        
+        // Leave current session
+        this.$store.commit("session/setSpectator", false);
+        this.$store.commit("session/setSessionId", "");
+        this.$store.commit("session/claimSeat", -1);
+        
+        // Show confirmation
+        await window.$dialog.alert("Session data cleared! You can now join as a fresh player.");
+        
+        // Reload to ensure clean state
+        window.location.reload();
       }
     },
     async addPlayer() {

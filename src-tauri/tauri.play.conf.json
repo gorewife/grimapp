@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "GrimLive Desktop",
+  "productName": "GrimLive Desktop (Player)",
   "version": "1.0.0",
-  "identifier": "com.grimlive.app",
+  "identifier": "com.grimlive.app.player",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "GrimLive - Blood on the Clocktower",
+        "title": "GrimLive - Player",
         "width": 1400,
         "height": 900,
         "resizable": true,
