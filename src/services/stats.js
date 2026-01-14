@@ -44,7 +44,7 @@ class StatsService {
   }
 
   get enabled() {
-    return this.store.state.stats.trackingEnabled;
+    return !!this.store.state.stats.discordUserId;
   }
 
   isEnabled() {

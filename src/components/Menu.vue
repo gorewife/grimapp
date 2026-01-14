@@ -203,11 +203,25 @@
                 style="color: white"
             /></em>
           </li>
-          <li v-else style="color: #57f287">
-            <small>✓ Discord: {{ discordUsername }}</small>
-            <em @click="logoutDiscord" style="cursor: pointer" title="Logout"
-              ><font-awesome-icon icon="sign-out-alt"
-            /></em>
+          <li v-else @click="handleProfileClick" class="profile-button" style="cursor: pointer">
+            <div class="profile-info">
+              <img
+                v-if="discordAvatar"
+                :src="discordAvatar"
+                alt="Profile"
+                class="profile-avatar"
+              />
+              <div v-else class="profile-avatar-placeholder">
+                <font-awesome-icon icon="user" />
+              </div>
+              <div class="profile-details">
+                <small class="profile-username">{{ discordUsername }}</small>
+                <small class="profile-status">✓ Linked</small>
+              </div>
+            </div>
+            <em title="View Profile">
+              <font-awesome-icon icon="chevron-right" />
+            </em>
           </li>
 
           <li
@@ -432,19 +446,6 @@
                   ]"
               /></em>
             </li>
-            <li
-              v-if="!session.isSpectator && isDiscordLinked"
-              @click="toggleStatTracking"
-            >
-              <small>Track Game Stats</small>
-              <em
-                ><font-awesome-icon
-                  :icon="[
-                    'fas',
-                    isStatTrackingEnabled ? 'check-square' : 'square',
-                  ]"
-              /></em>
-            </li>
             <li @click="leaveSession">
               Leave Session
               <em>{{ session.sessionId }}</em>
@@ -557,7 +558,7 @@ export default {
     },
     // Now properly reactive from Vuex - no updateKey needed!
     ...mapState("stats", {
-      isStatTrackingEnabled: (state) => state.trackingEnabled,
+      isStatTrackingEnabled: (state) => !!state.discordUserId,
       discordUsername: (state) => state.discordUsername || "Unknown",
       currentGameId: (state) => state.currentGameId,
       sessionCode: (state) => state.sessionCode || "",
@@ -565,6 +566,14 @@ export default {
     ...mapGetters("stats", ["isDiscordLinked"]),
     ...mapState(["grimoire", "session", "edition"]),
     ...mapState("players", ["players", "npcs"]),
+    discordAvatar() {
+      const avatarHash = localStorage.getItem("discordAvatar");
+      const userId = this.$store.state.stats.discordUserId;
+      if (avatarHash && userId) {
+        return `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.png?size=64`;
+      }
+      return null;
+    },
   },
   data() {
     return {
@@ -581,6 +590,41 @@ export default {
     };
   },
   async mounted() {
+    // Handle Discord OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('discord_login') === 'success') {
+      const userId = urlParams.get('user_id');
+      const username = urlParams.get('username');
+      const avatar = urlParams.get('avatar');
+      const token = urlParams.get('token');
+      const sessionId = urlParams.get('session_id');
+
+      if (userId && username && token && sessionId) {
+        // Save to localStorage
+        localStorage.setItem('discordUserId', userId);
+        localStorage.setItem('discordUsername', decodeURIComponent(username));
+        localStorage.setItem('statsToken', token);
+        localStorage.setItem('statsSessionId', sessionId);
+        if (avatar) {
+          localStorage.setItem('discordAvatar', avatar);
+        }
+
+        // Update Vuex store
+        this.$store.commit('stats/setDiscordUserId', userId);
+        this.$store.commit('stats/setDiscordUsername', decodeURIComponent(username));
+        this.$store.commit('stats/setStatsToken', token);
+        this.$store.commit('stats/setStatsSessionId', sessionId);
+
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Show success message
+        if (this.$root.$dialog) {
+          this.$root.$dialog.alert('Successfully logged in with Discord!');
+        }
+      }
+    }
+
     // Load selected session from Vuex store
     if (this.isDiscordLinked) {
       const savedCode = this.sessionCode;
@@ -744,30 +788,15 @@ export default {
         this.$store.commit("session/setVoteHistoryAllowed", false);
       }
     },
-    async toggleStatTracking() {
-      if (this.session.isSpectator) return;
-
-      // Can only enable if Discord is linked
-      if (!this.isStatTrackingEnabled && !this.isDiscordLinked) {
-        await window.$dialog.alert("Please log in with Discord first to enable stat tracking.");
-        return;
-      }
-
-      if (this.isStatTrackingEnabled) {
-        await this.$store.dispatch("stats/disableTracking");
-      } else {
-        await this.$store.dispatch("stats/enableTracking");
-      }
-    },
     async loginWithDiscord() {
       // loginWithDiscord clicked
       const baseUrl = import.meta.env.PROD
         ? "https://api.hystericca.dev"
         : "http://localhost:8001";
-      const redirectUri = encodeURIComponent(
-        window.location.origin + "/auth/callback.html",
-      );
-      const authUrl = `${baseUrl}/auth/discord?redirect_uri=${redirectUri}`;
+      
+      // Always use the server's callback URL, not the app's origin
+      // This is important for Tauri where window.location.origin would be tauri://localhost
+      const authUrl = `${baseUrl}/auth/discord`;
 
       // Redirecting to OAuth
       window.location.href = authUrl;
@@ -1116,6 +1145,12 @@ export default {
         // Don't call resetReveals here - revealed tokens should stay revealed!
       }
     },
+    handleProfileClick() {
+      console.log("Profile button clicked!");
+      console.log("Modal state before:", this.$store.state.modals.profile);
+      this.toggleModal('profile');
+      console.log("Modal state after:", this.$store.state.modals.profile);
+    },
   },
 };
 </script>
@@ -1436,6 +1471,72 @@ export default {
 
       @media (orientation: portrait) {
         font-size: 15px;
+      }
+    }
+
+    // Profile button styles
+    .profile-button {
+      display: flex !important;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px !important;
+      background: linear-gradient(135deg, rgba(87, 242, 135, 0.15), rgba(88, 101, 242, 0.15)) !important;
+      border: 1px solid rgba(87, 242, 135, 0.3);
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: linear-gradient(135deg, rgba(87, 242, 135, 0.25), rgba(88, 101, 242, 0.25)) !important;
+        border-color: rgba(87, 242, 135, 0.5);
+        transform: translateX(3px);
+      }
+
+      .profile-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+      }
+
+      .profile-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+      }
+
+      .profile-avatar-placeholder {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .profile-details {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+
+        .profile-username {
+          font-weight: 600;
+          color: white;
+        }
+
+        .profile-status {
+          font-size: 10px;
+          color: #57f287;
+          opacity: 0.8;
+        }
+      }
+
+      em {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 14px;
       }
     }
   }

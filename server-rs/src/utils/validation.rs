@@ -1,5 +1,6 @@
 use crate::error::{AppError, AppResult};
 
+#[allow(dead_code)]
 pub fn validate_discord_id(discord_id: &str) -> AppResult<()> {
     if discord_id.is_empty() || discord_id.len() > 20 {
         return Err(AppError::Validation("Invalid Discord ID".to_string()));

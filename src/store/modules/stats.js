@@ -18,7 +18,6 @@ const state = () => ({
 
   // Game tracking
   currentGameId: localStorage.getItem("currentGameId") || null,
-  trackingEnabled: localStorage.getItem("statTrackingEnabled") === "true",
 
   // API configuration
   baseUrl: import.meta.env.PROD
@@ -28,13 +27,12 @@ const state = () => ({
 
 const getters = {
   isDiscordLinked: (state) => !!state.discordUserId,
-  isTrackingEnabled: (state) => state.trackingEnabled,
+  isTrackingEnabled: (state) => !!state.discordUserId, // Always true if logged in
   hasActiveGame: (state) => !!state.currentGameId,
   hasSessionCode: (state) => !!state.sessionCode,
   isFullyConfigured: (state) => {
     return !!(
       state.discordUserId &&
-      state.trackingEnabled &&
       state.sessionCode
     );
   },
@@ -82,7 +80,6 @@ const actions = {
   logout({ commit }) {
     commit("setDiscordUserId", null);
     commit("setDiscordUsername", null);
-    commit("setTrackingEnabled", false);
     commit("setStatsToken", null);
     commit("setStatsSessionId", null);
     commit("setSessionCode", null);
@@ -91,30 +88,12 @@ const actions = {
     // Clear localStorage
     localStorage.removeItem("discordUserId");
     localStorage.removeItem("discordUsername");
-    localStorage.removeItem("statTrackingEnabled");
     localStorage.removeItem("statsToken");
     localStorage.removeItem("statsSessionId");
     localStorage.removeItem("selectedSessionCode");
   },
 
-  /**
-   * Enable stat tracking
-   */
-  async enableTracking({ commit, dispatch, state }) {
-    commit("setTrackingEnabled", true);
-
-    // Create session if we don't have one
-    if (!state.statsToken) {
-      await dispatch("createStatsSession");
-    }
-  },
-
-  /**
-   * Disable stat tracking
-   */
-  disableTracking({ commit }) {
-    commit("setTrackingEnabled", false);
-  },
+  // Tracking enable/disable removed - stats are tracked automatically when logged in
 
   /**
    * Create a new stats session
@@ -155,8 +134,8 @@ const actions = {
     { commit, state },
     { script, customName, players, sessionCode },
   ) {
-    if (!state.trackingEnabled || !state.statsToken) {
-      throw new Error("Stats tracking not enabled or no token");
+    if (!state.discordUserId || !state.statsToken) {
+      throw new Error("Discord login required for stats tracking");
     }
 
     try {
@@ -342,12 +321,9 @@ const mutations = {
       localStorage.removeItem("currentGameId");
     }
   },
-
-  setTrackingEnabled(state, enabled) {
-    state.trackingEnabled = enabled;
-    localStorage.setItem("statTrackingEnabled", enabled ? "true" : "false");
-  },
 };
+
+// Tracking is automatic - removed setTrackingEnabled mutation
 
 export default {
   namespaced: true,

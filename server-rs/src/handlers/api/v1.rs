@@ -1,67 +1,18 @@
 use axum::{
     extract::{Path, Query, State},
-    http::{HeaderMap, StatusCode},
+    http::StatusCode,
     Json,
 };
 use serde::Deserialize;
-use sha2::{Sha256, Digest};
 use crate::{
     error::{AppError, AppResult},
-    models::{ApiKey, ApiKeyCreate, ApiKeyResponse, Game, StatsSummary},
+    models::{ApiKeyCreate, Game, PlayerStats, ScriptStats, StatsSummary},
     state::AppState,
+    utils::validation,
 };
 
 // ============================================================================
-// Middleware: Verify API Key
-// ============================================================================
-
-async fn verify_api_key(headers: &HeaderMap, state: &AppState) -> AppResult<ApiKey> {
-    let api_key = headers
-        .get("x-api-key")
-        .and_then(|v| v.to_str().ok())
-        .ok_or_else(|| AppError::Unauthorized("Missing X-API-Key header".to_string()))?;
-
-    // Hash the key
-    let mut hasher = Sha256::new();
-    hasher.update(api_key.as_bytes());
-    let key_hash = format!("{:x}", hasher.finalize());
-
-    // Look up key in database
-    let api_key_record = sqlx::query_as::<_, ApiKey>(
-        "SELECT id, discord_id, key_hash, name, rate_limit, is_active, created_at, last_used_at 
-         FROM api_keys WHERE key_hash = $1 AND is_active = true"
-    )
-    .bind(&key_hash)
-    .fetch_optional(&state.database.pool)
-    .await?
-    .ok_or_else(|| AppError::Unauthorized("Invalid API key".to_string()))?;
-
-    // Check rate limit
-    let allowed = state
-        .services
-        .rate_limit
-        .check_rate_limit(
-            &api_key_record.id.to_string(),
-            api_key_record.rate_limit as u32,
-            state.config.rate_limit_window_ms,
-        )
-        .await;
-
-    if !allowed {
-        return Err(AppError::RateLimitExceeded);
-    }
-
-    // Update last_used_at
-    sqlx::query("UPDATE api_keys SET last_used_at = NOW() WHERE id = $1")
-        .bind(api_key_record.id)
-        .execute(&state.database.pool)
-        .await?;
-
-    Ok(api_key_record)
-}
-
-// ============================================================================
-// Public Read-Only Endpoints (require API key)
+// Public Read-Only Endpoints (protected by API key middleware)
 // ============================================================================
 
 #[derive(Deserialize)]
@@ -76,112 +27,116 @@ fn default_limit() -> i64 {
     50
 }
 
+/// List all games with pagination
 pub async fn get_games(
     State(state): State<AppState>,
-    headers: HeaderMap,
     Query(pagination): Query<PaginationQuery>,
 ) -> AppResult<Json<Vec<Game>>> {
-    verify_api_key(&headers, &state).await?;
+    // Validate pagination
+    if pagination.limit < 1 || pagination.limit > 100 {
+        return Err(AppError::Validation("Limit must be between 1 and 100".to_string()));
+    }
+    if pagination.offset < 0 {
+        return Err(AppError::Validation("Offset must be non-negative".to_string()));
+    }
 
     let games = state.services.game.get_games(pagination.limit, pagination.offset).await?;
     Ok(Json(games))
 }
 
+/// Get a specific game by ID
 pub async fn get_game_by_id(
     State(state): State<AppState>,
-    headers: HeaderMap,
     Path(game_id): Path<i32>,
 ) -> AppResult<Json<Game>> {
-    verify_api_key(&headers, &state).await?;
-
     let game = state.services.game.get_game(game_id).await?
         .ok_or_else(|| AppError::NotFound("Game not found".to_string()))?;
     
     Ok(Json(game))
 }
 
+/// Get overall statistics summary
 pub async fn get_stats_summary(
     State(state): State<AppState>,
-    headers: HeaderMap,
 ) -> AppResult<Json<StatsSummary>> {
-    verify_api_key(&headers, &state).await?;
-
     let total_games = state.services.game.count_total_games().await?;
-    let active_sessions = state.services.session.count_active_sessions().await?;
+    let total_players = state.services.game.count_total_players().await?;
+    let unique_players = state.services.game.count_unique_players().await?;
+    let active_games = state.services.game.count_active_games().await?;
 
     let stats = StatsSummary {
         total_games,
-        total_players: 0, // TODO: Implement
-        unique_players: 0, // TODO: Implement
-        active_sessions,
+        total_players,
+        unique_players,
+        active_games,
     };
 
     Ok(Json(stats))
 }
 
+/// Get player statistics by Discord ID
 pub async fn get_player_stats(
     State(state): State<AppState>,
-    headers: HeaderMap,
-    Path(discord_id): Path<String>,
-) -> AppResult<Json<serde_json::Value>> {
-    verify_api_key(&headers, &state).await?;
+    Path(discord_id): Path<i64>,
+) -> AppResult<Json<PlayerStats>> {
+    let stats = state.services.game.get_player_stats(discord_id).await?
+        .ok_or_else(|| AppError::NotFound("Player not found".to_string()))?;
     
-    // TODO: Implement player stats query
-    Ok(Json(serde_json::json!({
-        "discord_id": discord_id,
-        "message": "Not yet implemented"
-    })))
+    Ok(Json(stats))
 }
 
+/// Get script statistics by script name
 pub async fn get_script_stats(
     State(state): State<AppState>,
-    headers: HeaderMap,
     Path(script_name): Path<String>,
-) -> AppResult<Json<serde_json::Value>> {
-    verify_api_key(&headers, &state).await?;
+) -> AppResult<Json<ScriptStats>> {
+    validation::validate_script_name(&script_name)?;
     
-    // TODO: Implement script stats query
-    Ok(Json(serde_json::json!({
-        "script_name": script_name,
-        "message": "Not yet implemented"
-    })))
+    let stats = state.services.game.get_script_stats(&script_name).await?
+        .ok_or_else(|| AppError::NotFound("Script not found".to_string()))?;
+    
+    Ok(Json(stats))
 }
 
 // ============================================================================
-// API Key Management (require session token - TODO)
+// API Key Management (TODO: should require session token, not API key)
 // ============================================================================
 
 pub async fn list_api_keys(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> AppResult<Json<Vec<ApiKey>>> {
+    State(_state): State<AppState>,
+) -> AppResult<Json<Vec<String>>> {
     // TODO: Verify session token instead of API key
+    // For now, return empty list
     Ok(Json(vec![]))
 }
 
 pub async fn create_api_key(
-    State(state): State<AppState>,
-    headers: HeaderMap,
+    State(_state): State<AppState>,
     Json(payload): Json<ApiKeyCreate>,
-) -> AppResult<Json<ApiKeyResponse>> {
-    // TODO: Verify session token and get discord_id
-    // For now, return error
+) -> AppResult<StatusCode> {
+    // Validate API key name
+    validation::validate_api_key_name(&payload.name)?;
+    
+    // Validate rate limit if provided
+    if let Some(rate_limit) = payload.rate_limit {
+        validation::validate_rate_limit(rate_limit)?;
+    }
+    
+    // TODO: Verify session token and implement
     Err(AppError::Internal("Not yet implemented".to_string()))
 }
 
 pub async fn update_api_key(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Path(key_id): Path<i32>,
+    State(_state): State<AppState>,
+    Path(_key_id): Path<i32>,
 ) -> AppResult<StatusCode> {
     // TODO: Implement
     Err(AppError::Internal("Not yet implemented".to_string()))
 }
 
 pub async fn delete_api_key(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Path(key_id): Path<i32>,
+    State(_state): State<AppState>,
+    Path(_key_id): Path<i32>,
 ) -> AppResult<StatusCode> {
     // TODO: Implement
     Err(AppError::Internal("Not yet implemented".to_string()))

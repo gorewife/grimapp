@@ -1,19 +1,25 @@
-use chrono::{DateTime, Utc};
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use uuid::Uuid;
 
 // ============================================================================
-// Session Models
+// Session Models (Discord bot sessions)
 // ============================================================================
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Session {
-    pub id: Uuid,
-    pub host_discord_id: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub ended_at: Option<DateTime<Utc>>,
-    pub script_name: Option<String>,
+    pub guild_id: i64,
+    pub category_id: i64,
+    pub destination_channel_id: Option<i64>,
+    pub grimoire_link: Option<String>,
+    pub exception_channel_id: Option<i64>,
+    pub announce_channel_id: Option<i64>,
+    pub active_game_id: Option<i32>,
+    pub created_at: f64,
+    pub last_active: f64,
+    pub storyteller_user_id: Option<i64>,
+    pub session_code: Option<String>,
 }
 
 // ============================================================================
@@ -22,26 +28,41 @@ pub struct Session {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Game {
-    pub id: i32,
-    pub session_id: Uuid,
-    pub created_at: DateTime<Utc>,
-    pub player_count: i32,
-    pub script: Option<String>,
-    pub winning_team: Option<String>,
-    pub ended_at: Option<DateTime<Utc>>,
+    pub game_id: i32,
+    pub guild_id: i64,
+    pub script: String,
+    pub custom_name: Option<String>,
+    pub start_time: f64,
+    pub end_time: Option<f64>,
+    pub winner: Option<String>,
+    pub player_count: Option<i32>,
+    #[sqlx(json)]
+    pub players: Option<serde_json::Value>,
+    pub is_active: Option<bool>,
+    pub created_at: Option<NaiveDateTime>,
+    pub completed_at: Option<NaiveDateTime>,
+    pub storyteller_id: Option<i64>,
+    pub category_id: Option<i64>,
+    pub storyteller_user_id: Option<i64>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct Player {
+pub struct GamePlayer {
     pub id: i32,
     pub game_id: i32,
-    pub discord_id: String,
-    pub discord_username: String,
-    pub character: String,
-    pub team: String,
-    pub died_at_night: Option<i32>,
-    pub died_at_execution: Option<i32>,
-    pub survived: bool,
+    pub discord_id: Option<i64>,
+    pub player_name: String,
+    pub seat_number: i32,
+    pub final_role_id: Option<String>,
+    pub final_role_name: Option<String>,
+    pub final_team: Option<String>,
+    pub survived: Option<bool>,
+    pub winning_team: Option<bool>,
+    pub created_at: Option<NaiveDateTime>,
+    pub starting_role_id: Option<String>,
+    pub starting_role_name: Option<String>,
+    pub starting_team: Option<String>,
 }
 
 // ============================================================================
@@ -51,21 +72,38 @@ pub struct Player {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct ApiKey {
     pub id: i32,
-    pub discord_id: String,
     pub key_hash: String,
     pub name: String,
-    pub rate_limit: i32,
-    pub is_active: bool,
-    pub created_at: DateTime<Utc>,
-    pub last_used_at: Option<DateTime<Utc>>,
+    pub discord_user_id: Option<String>,
+    pub rate_limit: Option<i32>,
+    pub created_at: Option<NaiveDateTime>,
+    pub last_used_at: Option<NaiveDateTime>,
+    pub is_active: Option<bool>,
+    pub notes: Option<String>,
+}
+
+// ============================================================================
+// Web Session Models
+// ============================================================================
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct WebSession {
+    pub session_id: String,  // TEXT in database
+    pub token: String,
+    pub discord_user_id: Option<i64>,
+    pub created_at: Option<i64>,  // BIGINT unix timestamp
+    pub expires_at: i64,  // BIGINT unix timestamp
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApiKeyCreate {
     pub name: String,
     pub rate_limit: Option<i32>,
+    pub notes: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApiKeyResponse {
     pub id: i32,
@@ -73,7 +111,7 @@ pub struct ApiKeyResponse {
     pub key: String, // Only returned on creation
     pub rate_limit: i32,
     pub is_active: bool,
-    pub created_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
 }
 
 // ============================================================================
@@ -85,25 +123,25 @@ pub struct StatsSummary {
     pub total_games: i64,
     pub total_players: i64,
     pub unique_players: i64,
-    pub active_sessions: i64,
+    pub active_games: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct PlayerStats {
-    pub discord_id: String,
-    pub discord_username: String,
+    pub discord_id: i64,
+    pub player_name: String,
     pub games_played: i64,
     pub wins: i64,
     pub losses: i64,
     pub survival_rate: f64,
-    pub favorite_character: Option<String>,
+    pub favorite_role: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct ScriptStats {
     pub script_name: String,
     pub games_played: i64,
-    pub townsfolk_wins: i64,
+    pub good_wins: i64,
     pub evil_wins: i64,
     pub average_player_count: f64,
 }

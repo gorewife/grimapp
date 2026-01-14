@@ -376,7 +376,7 @@ export default {
     ...mapState("players", ["players"]),
     ...mapState(["grimoire", "session"]),
     ...mapState("stats", {
-      statsEnabled: (state) => state.trackingEnabled,
+      statsEnabled: (state) => !!state.discordUserId,
       isDiscordLinked: (state) => !!state.discordUserId,
     }),
     ...mapGetters({ nightOrder: "players/nightOrder" }),

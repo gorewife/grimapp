@@ -1,6 +1,5 @@
-use crate::{database::Database, error::{AppError, AppResult}, models::{Game, Player}};
+use crate::{database::Database, error::AppResult, models::{Game, GamePlayer, PlayerStats, ScriptStats}};
 use sqlx::Row;
-use uuid::Uuid;
 
 pub struct GameService {
     db: Database,
@@ -11,26 +10,12 @@ impl GameService {
         Self { db }
     }
 
-    pub async fn create_game(&self, session_id: Uuid, player_count: i32, script: Option<String>) -> AppResult<Game> {
-        let game = sqlx::query_as::<_, Game>(
-            r#"
-            INSERT INTO games (session_id, player_count, script)
-            VALUES ($1, $2, $3)
-            RETURNING id, session_id, created_at, player_count, script, winning_team, ended_at
-            "#
-        )
-        .bind(session_id)
-        .bind(player_count)
-        .bind(script)
-        .fetch_one(&self.db.pool)
-        .await?;
-
-        Ok(game)
-    }
-
     pub async fn get_game(&self, game_id: i32) -> AppResult<Option<Game>> {
         let game = sqlx::query_as::<_, Game>(
-            "SELECT id, session_id, created_at, player_count, script, winning_team, ended_at FROM games WHERE id = $1"
+            "SELECT game_id, guild_id, script, custom_name, start_time, end_time, winner, 
+                    player_count, players, is_active, created_at, completed_at, 
+                    storyteller_id, category_id, storyteller_user_id 
+             FROM games WHERE game_id = $1"
         )
         .bind(game_id)
         .fetch_optional(&self.db.pool)
@@ -41,8 +26,13 @@ impl GameService {
 
     pub async fn get_games(&self, limit: i64, offset: i64) -> AppResult<Vec<Game>> {
         let games = sqlx::query_as::<_, Game>(
-            "SELECT id, session_id, created_at, player_count, script, winning_team, ended_at 
-             FROM games ORDER BY created_at DESC LIMIT $1 OFFSET $2"
+            "SELECT game_id, guild_id, script, custom_name, start_time, end_time, winner, 
+                    player_count, players, is_active, created_at, completed_at, 
+                    storyteller_id, category_id, storyteller_user_id 
+             FROM games 
+             WHERE is_active = false 
+             ORDER BY completed_at DESC NULLS LAST, created_at DESC 
+             LIMIT $1 OFFSET $2"
         )
         .bind(limit)
         .bind(offset)
@@ -52,11 +42,16 @@ impl GameService {
         Ok(games)
     }
 
-    pub async fn get_players(&self, game_id: i32) -> AppResult<Vec<Player>> {
-        let players = sqlx::query_as::<_, Player>(
-            "SELECT id, game_id, discord_id, discord_username, character, team, 
-                    died_at_night, died_at_execution, survived 
-             FROM players WHERE game_id = $1"
+    #[allow(dead_code)]
+    pub async fn get_game_players(&self, game_id: i32) -> AppResult<Vec<GamePlayer>> {
+        let players = sqlx::query_as::<_, GamePlayer>(
+            "SELECT id, game_id, discord_id, player_name, seat_number, 
+                    final_role_id, final_role_name, final_team, 
+                    survived, winning_team, created_at,
+                    starting_role_id, starting_role_name, starting_team 
+             FROM game_players 
+             WHERE game_id = $1 
+             ORDER BY seat_number"
         )
         .bind(game_id)
         .fetch_all(&self.db.pool)
@@ -66,10 +61,87 @@ impl GameService {
     }
 
     pub async fn count_total_games(&self) -> AppResult<i64> {
-        let row = sqlx::query("SELECT COUNT(*) FROM games")
+        let row = sqlx::query("SELECT COUNT(*) FROM games WHERE is_active = false")
             .fetch_one(&self.db.pool)
             .await?;
 
         Ok(row.get(0))
+    }
+
+    pub async fn count_total_players(&self) -> AppResult<i64> {
+        let row = sqlx::query("SELECT COUNT(*) FROM game_players")
+            .fetch_one(&self.db.pool)
+            .await?;
+
+        Ok(row.get(0))
+    }
+
+    pub async fn count_unique_players(&self) -> AppResult<i64> {
+        let row = sqlx::query("SELECT COUNT(DISTINCT discord_id) FROM game_players WHERE discord_id IS NOT NULL")
+            .fetch_one(&self.db.pool)
+            .await?;
+
+        Ok(row.get(0))
+    }
+
+    pub async fn count_active_games(&self) -> AppResult<i64> {
+        let row = sqlx::query("SELECT COUNT(*) FROM games WHERE is_active = true")
+            .fetch_one(&self.db.pool)
+            .await?;
+
+        Ok(row.get(0))
+    }
+
+    /// Get player statistics by Discord ID
+    pub async fn get_player_stats(&self, discord_id: i64) -> AppResult<Option<PlayerStats>> {
+        let stats = sqlx::query_as::<_, PlayerStats>(
+            r#"
+            SELECT 
+                discord_id,
+                MAX(player_name) as player_name,
+                COUNT(*) as games_played,
+                SUM(CASE WHEN winning_team THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN NOT winning_team THEN 1 ELSE 0 END) as losses,
+                ROUND(AVG(CASE WHEN survived THEN 1.0 ELSE 0.0 END) * 100, 2) as survival_rate,
+                (
+                    SELECT final_role_name 
+                    FROM game_players 
+                    WHERE discord_id = $1 AND final_role_name IS NOT NULL
+                    GROUP BY final_role_name 
+                    ORDER BY COUNT(*) DESC 
+                    LIMIT 1
+                ) as favorite_role
+            FROM game_players
+            WHERE discord_id = $1
+            GROUP BY discord_id
+            "#
+        )
+        .bind(discord_id)
+        .fetch_optional(&self.db.pool)
+        .await?;
+
+        Ok(stats)
+    }
+
+    /// Get script statistics by script name
+    pub async fn get_script_stats(&self, script_name: &str) -> AppResult<Option<ScriptStats>> {
+        let stats = sqlx::query_as::<_, ScriptStats>(
+            r#"
+            SELECT 
+                script as script_name,
+                COUNT(*) as games_played,
+                SUM(CASE WHEN winner = 'Good' THEN 1 ELSE 0 END) as good_wins,
+                SUM(CASE WHEN winner = 'Evil' THEN 1 ELSE 0 END) as evil_wins,
+                ROUND(AVG(player_count::numeric), 2) as average_player_count
+            FROM games
+            WHERE script = $1 AND is_active = false AND winner IS NOT NULL
+            GROUP BY script
+            "#
+        )
+        .bind(script_name)
+        .fetch_optional(&self.db.pool)
+        .await?;
+
+        Ok(stats)
     }
 }

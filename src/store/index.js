@@ -149,6 +149,7 @@ export default createStore({
       journal: false,
       messages: false,
       nightOrder: false,
+      profile: false,
       reference: false,
       reminder: false,
       role: false,

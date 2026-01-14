@@ -2,6 +2,7 @@ mod config;
 mod database;
 mod error;
 mod handlers;
+mod middleware;
 mod models;
 mod services;
 mod state;
@@ -10,7 +11,7 @@ mod utils;
 use axum::{
     extract::Request,
     http::{header, Method},
-    middleware,
+    middleware::{self as axum_middleware, Next},
     response::Response,
     routing::{get, post},
     Router,
@@ -56,7 +57,16 @@ async fn main() -> anyhow::Result<()> {
     // Create shared application state
     let state = AppState::new(config.clone(), database, services);
 
-    // Build router
+    // Protected API routes (require API key)
+    let protected_routes = Router::new()
+        .route("/api/v1/games", get(api::v1::get_games))
+        .route("/api/v1/games/:id", get(api::v1::get_game_by_id))
+        .route("/api/v1/stats/summary", get(api::v1::get_stats_summary))
+        .route("/api/v1/players/:discord_id/stats", get(api::v1::get_player_stats))
+        .route("/api/v1/scripts/:script_name/stats", get(api::v1::get_script_stats))
+        .route_layer(axum_middleware::from_fn_with_state(state.clone(), crate::middleware::verify_api_key));
+
+    // Build main router
     let app = Router::new()
         // Health check
         .route("/health", get(health::health_check))
@@ -64,18 +74,17 @@ async fn main() -> anyhow::Result<()> {
         // WebSocket endpoint
         .route("/", get(ws_handler::websocket_handler))
         
-        // Auth endpoints
+        // Auth endpoints (no API key required)
         .route("/auth/discord", get(auth::discord_oauth))
         .route("/auth/discord/callback", get(auth::discord_callback))
         
-        // API v1 endpoints
-        .route("/api/v1/games", get(api::v1::get_games))
-        .route("/api/v1/games/:id", get(api::v1::get_game_by_id))
-        .route("/api/v1/stats/summary", get(api::v1::get_stats_summary))
-        .route("/api/v1/players/:discord_id/stats", get(api::v1::get_player_stats))
-        .route("/api/v1/scripts/:script_name/stats", get(api::v1::get_script_stats))
+        // Session management (no API key required)
+        .route("/api/session/create", post(handlers::session::create_session))
         
-        // API key management
+        // Merge protected routes
+        .merge(protected_routes)
+        
+        // API key management - TODO: should use session auth instead
         .route("/api/v1/keys", get(api::v1::list_api_keys))
         .route("/api/v1/keys/create", post(api::v1::create_api_key))
         .route("/api/v1/keys/:key_id", post(api::v1::update_api_key))
@@ -92,7 +101,7 @@ async fn main() -> anyhow::Result<()> {
                         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::HeaderName::from_static("x-api-key")])
                         .max_age(Duration::from_secs(86400)),
                 )
-                .layer(middleware::from_fn(security_headers)),
+                .layer(axum_middleware::from_fn(security_headers)),
         )
         .with_state(state);
 
@@ -110,7 +119,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 /// Security headers middleware
-async fn security_headers(request: Request, next: middleware::Next) -> Response {
+async fn security_headers(request: Request, next: Next) -> Response {
     let mut response = next.run(request).await;
     let headers = response.headers_mut();
     

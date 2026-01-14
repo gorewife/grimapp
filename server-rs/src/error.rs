@@ -11,9 +11,10 @@ pub enum AppError {
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
     
-    #[error("Authentication failed: {0}")]
+    #[error("Unauthorized: {0}")]
     Unauthorized(String),
     
+    #[allow(dead_code)]
     #[error("Forbidden: {0}")]
     Forbidden(String),
     

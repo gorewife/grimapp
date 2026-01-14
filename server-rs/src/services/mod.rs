@@ -5,6 +5,7 @@ pub mod rate_limit;
 use crate::database::Database;
 
 pub struct ServiceContainer {
+    #[allow(dead_code)]
     pub session: session::SessionService,
     pub game: game::GameService,
     pub rate_limit: rate_limit::RateLimitService,

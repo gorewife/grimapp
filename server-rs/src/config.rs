@@ -5,13 +5,16 @@ use std::env;
 pub struct Config {
     pub node_env: String,
     pub port: u16,
+    #[allow(dead_code)]
     pub ssl_enabled: bool,
     pub database_url: String,
     pub discord_client_id: String,
     pub discord_client_secret: String,
     pub discord_redirect_uri: String,
+    #[allow(dead_code)]
     pub session_secret: String,
     pub rate_limit_window_ms: u64,
+    #[allow(dead_code)]
     pub rate_limit_max_requests: u32,
 }
 
@@ -46,9 +49,5 @@ impl Config {
                 .parse()
                 .unwrap_or(100),
         })
-    }
-    
-    pub fn is_development(&self) -> bool {
-        self.node_env == "development"
     }
 }

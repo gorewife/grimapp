@@ -59,6 +59,7 @@
       <NightOrderModal />
       <VoteHistoryModal />
       <GameStateModal />
+      <ProfileModal />
     </ErrorBoundary>
 
     <DialogModal ref="dialogModal" />
@@ -93,11 +94,13 @@ const GameStateModal = defineAsyncComponent(() => import("@/components/modals/Ga
 const JournalModal = defineAsyncComponent(() => import("./components/modals/JournalModal"));
 const TimerModal = defineAsyncComponent(() => import("./components/modals/TimerModal"));
 const DialogModal = defineAsyncComponent(() => import("./components/modals/DialogModal"));
+const ProfileModal = defineAsyncComponent(() => import("./components/modals/ProfileModal"));
 
 export default {
   components: {
     ErrorBoundary,
     GameStateModal,
+    ProfileModal,
     VoteHistoryModal,
     JournalModal,
     TimerModal,

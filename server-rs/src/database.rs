@@ -29,6 +29,7 @@ impl Database {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn health_check(&self) -> bool {
         sqlx::query("SELECT 1")
             .fetch_one(&self.pool)

@@ -52,6 +52,9 @@
             localStorage.setItem('discordUserId', data.userId);
             localStorage.setItem('discordUsername', `${data.username}${data.discriminator !== '0' ? '#' + data.discriminator : ''}`);
             localStorage.setItem('statTrackingEnabled', 'true');
+            if (data.avatar) {
+              localStorage.setItem('discordAvatar', data.avatar);
+            }
             
             console.log('[Callback] Creating session...');
             
