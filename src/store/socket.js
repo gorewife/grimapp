@@ -98,10 +98,6 @@ class LiveSession {
         this._store.state.session.playerId,
       );
     } else {
-      // Initialize storyteller data before sending gamestate
-      if (!this._store.state.session.storyteller.name) {
-        this._store.dispatch('session/initializeStoryteller');
-      }
       this.sendGamestate();
     }
     this._ping();
@@ -299,6 +295,10 @@ class LiveSession {
     this._store.commit("session/setPing", 0);
     this._isSpectator = this._store.state.session.isSpectator;
     if (!this._isSpectator) {
+      // Initialize storyteller data BEFORE opening connection
+      if (!this._store.state.session.storyteller.name) {
+        await this._store.dispatch('session/initializeStoryteller');
+      }
       // clear all claimed and reserved seats when hosting a new session
       this._store.state.players.players.forEach((player) => {
         this._store.commit("players/update", {
@@ -961,7 +961,7 @@ class LiveSession {
         this._store.commit("players/update", {
           player: player,
           property: "connected",
-          value: "false",
+          value: false,
         });
       }
     });

@@ -9,6 +9,7 @@
       'reveal-mode': grimoire.isRevealMode,
     }"
   >
+    <!-- Storyteller Token in top-left -->
     <StorytellerToken />
 
     <ul class="circle" :class="['size-' + players.length]">
