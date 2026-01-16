@@ -128,7 +128,7 @@ export default createStore({
     grimoire: {
       isNight: false,
       isNightOrder: true,
-      isPublic: true,
+      isPublic: false,  // Changed from true - default to private grimoire (storyteller view)
       isMenuOpen: false,
       isStatic: false,
       isMuted: false,
